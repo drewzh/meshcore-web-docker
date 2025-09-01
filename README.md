@@ -19,7 +19,7 @@ A Docker container that downloads and hosts the MeshCore web application from [f
 
 ```yaml
 # docker-compose.yml
-version: '3.8'
+version: "3.8"
 services:
   meshcore:
     image: ghcr.io/drewzh/meshcore-web-docker:latest
@@ -62,9 +62,9 @@ docker logs -f meshcore-web
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `TZ` | `UTC` | Timezone for logs |
+| Variable            | Default                                 | Description                    |
+| ------------------- | --------------------------------------- | ------------------------------ |
+| `TZ`                | `UTC`                                   | Timezone for logs              |
 | `MESHCORE_BASE_URL` | `https://files.liamcottle.net/MeshCore` | Base URL for MeshCore releases |
 
 ### Ports
@@ -153,7 +153,6 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 - [MeshCore](https://github.com/liamcottle/meshcore) by Liam Cottle for the excellent Meshtastic web interface
 - [files.liamcottle.net](https://files.liamcottle.net/MeshCore/) for providing direct zip file downloads
-
 
 ## Development
 

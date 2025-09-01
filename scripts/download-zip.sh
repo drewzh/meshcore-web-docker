@@ -155,6 +155,17 @@ update_meshcore() {
             version_name="$latest_version"
             log "Auto-detected version: $version_name"
             log "Auto-detected URL: $download_url"
+            
+            # Check if we already have this version downloaded
+            local target_version_dir="$VERSIONS_DIR/$version_name"
+            if [ -d "$target_version_dir" ] && [ -f "$target_version_dir/index.html" ]; then
+                log "Version $version_name already downloaded, switching to it"
+                rm -f "$CURRENT_LINK"
+                ln -sf "$target_version_dir" "$CURRENT_LINK"
+                log "Symlink updated: $CURRENT_LINK -> $target_version_dir"
+                log "Successfully switched to cached version: $version_name"
+                return 0
+            fi
         else
             log "Failed to get download URL for version $latest_version"
             return 1
@@ -168,16 +179,14 @@ update_meshcore() {
     log "Version name: $version_name"
     
     # Download to new version directory
-    local new_version_dir="$VERSIONS_DIR/$version_name"
-    
-    if download_meshcore "$download_url" "$new_version_dir" "$version_name"; then
+    if download_meshcore "$download_url" "$target_version_dir" "$version_name"; then
         log "Download successful, switching to new version"
         
         # Switch symlink to new version (remove existing link first)
         rm -f "$CURRENT_LINK"
-        ln -sf "$new_version_dir" "$CURRENT_LINK"
+        ln -sf "$target_version_dir" "$CURRENT_LINK"
         
-        log "Symlink updated: $CURRENT_LINK -> $new_version_dir"
+        log "Symlink updated: $CURRENT_LINK -> $target_version_dir"
         
         log "Successfully updated to version: $version_name"
         
@@ -187,7 +196,7 @@ update_meshcore() {
         return 0
     else
         log "Download failed"
-        rm -rf "$new_version_dir" 2>/dev/null || true
+        rm -rf "$target_version_dir" 2>/dev/null || true
         return 1
     fi
 }
@@ -215,6 +224,18 @@ cleanup_old_versions() {
 # Function to ensure we have a working installation
 ensure_working_version() {
     log "Ensuring we have a working MeshCore installation..."
+    
+    # First, check if we have any downloaded versions available (prefer them over loading page)
+    local latest_downloaded_version
+    if latest_downloaded_version=$(find "$VERSIONS_DIR" -mindepth 1 -maxdepth 1 -type d -name "v*" | sort -V | tail -1); then
+        if [ -n "$latest_downloaded_version" ] && [ -d "$latest_downloaded_version" ] && [ -f "$latest_downloaded_version/index.html" ]; then
+            log "Found downloaded version: $(basename "$latest_downloaded_version")"
+            rm -f "$CURRENT_LINK"
+            ln -sf "$latest_downloaded_version" "$CURRENT_LINK"
+            log "Switched to downloaded version: $(basename "$latest_downloaded_version")"
+            return 0
+        fi
+    fi
     
     # Check if current symlink exists and is valid
     if [ -L "$CURRENT_LINK" ] && [ -d "$CURRENT_LINK" ] && [ -f "$CURRENT_LINK/index.html" ]; then

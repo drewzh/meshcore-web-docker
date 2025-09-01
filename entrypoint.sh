@@ -10,10 +10,8 @@ log "Starting MeshCore Web Docker container..."
 
 # Environment variables for MeshCore download
 export MESHCORE_BASE_URL="${MESHCORE_BASE_URL:-https://files.liamcottle.net/MeshCore}"
-export MESHCORE_ZIP_URL="${MESHCORE_ZIP_URL:-https://files.liamcottle.net/MeshCore/v1.25.0/MeshCore-v1.25.0+47-aef292a-web.zip}"
 
 log "Using MeshCore Base URL: $MESHCORE_BASE_URL"
-log "Using MeshCore Zip URL: $MESHCORE_ZIP_URL"
 
 # Run the new zip-based downloader
 log "Running MeshCore zip downloader..."
