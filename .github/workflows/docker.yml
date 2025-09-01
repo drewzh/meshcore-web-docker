@@ -35,25 +35,25 @@ jobs:
           # Debug: Check the built image
           echo "=== Checking built image ==="
           docker images meshcore-web:test
-          
+
           # Debug: Check if entrypoint exists in the image
           echo "=== Checking entrypoint in image ==="
           docker run --rm meshcore-web:test ls -la /entrypoint.sh || echo "❌ entrypoint.sh not found"
           docker run --rm meshcore-web:test file /entrypoint.sh || echo "❌ Cannot check file type"
           docker run --rm meshcore-web:test head -3 /entrypoint.sh || echo "❌ Cannot read file"
-          
+
           # Start the container
           echo "=== Starting container ==="
           docker run -d --name meshcore-test -p 8080:80 meshcore-web:test
-          
+
           # Check container status immediately
           echo "=== Container status ==="
           docker ps -a --filter name=meshcore-test
-          
+
           # Show container logs
           echo "=== Container logs ==="
           docker logs meshcore-test
-          
+
           # Wait for container to be ready (if it started successfully)
           if docker ps --filter name=meshcore-test --filter status=running | grep -q meshcore-test; then
             echo "=== Container is running, testing endpoints ==="
