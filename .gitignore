@@ -33,3 +33,7 @@ Thumbs.db
 # Downloaded web content (when developing locally)
 web/
 meshcore-download/
+versions/
+
+# But keep the loading page template
+!loading.html

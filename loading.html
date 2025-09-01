@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MeshCore - Loading...</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        margin: 0;
+        padding: 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        color: white;
+      }
+      .container {
+        text-align: center;
+        max-width: 500px;
+        padding: 2rem;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+      h1 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(45deg, #fff, #f0f0f0);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .loader {
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(255, 255, 255, 0.3);
+        border-top: 5px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 2rem auto;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .status {
+        font-size: 1.1rem;
+        margin: 1rem 0;
+        opacity: 0.9;
+      }
+      .details {
+        font-size: 0.9rem;
+        opacity: 0.7;
+        line-height: 1.6;
+      }
+      .refresh-info {
+        margin-top: 2rem;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        font-size: 0.8rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>MeshCore</h1>
+      <div class="loader"></div>
+      <div class="status" id="status">Loading MeshCore Web Application...</div>
+      <div class="details">
+        <p>The application is being downloaded and prepared for you.</p>
+        <p>This usually takes just a few moments.</p>
+      </div>
+      <div class="refresh-info">
+        <div>Auto-refreshing every 5 seconds</div>
+        <div id="countdown">Next refresh in: 5s</div>
+      </div>
+    </div>
+
+    <script>
+      let countdown = 5;
+      const countdownElement = document.getElementById("countdown");
+      const statusElement = document.getElementById("status");
+
+      // Update countdown every second
+      const countdownInterval = setInterval(() => {
+        countdown--;
+        countdownElement.textContent = `Next refresh in: ${countdown}s`;
+
+        if (countdown <= 0) {
+          statusElement.textContent = "Checking for application...";
+          window.location.reload();
+        }
+      }, 1000);
+
+      // Also try to check if the app is ready by testing a fetch
+      const checkAppReady = async () => {
+        try {
+          const response = await fetch("/version");
+          if (response.ok) {
+            statusElement.textContent = "Application ready! Redirecting...";
+            clearInterval(countdownInterval);
+            window.location.reload();
+          }
+        } catch (e) {
+          // App not ready yet, continue waiting
+        }
+      };
+
+      // Check every 2 seconds if app is ready
+      setInterval(checkAppReady, 2000);
+
+      // Initial check after 1 second
+      setTimeout(checkAppReady, 1000);
+    </script>
+  </body>
+</html>

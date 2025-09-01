@@ -4,7 +4,8 @@ A Docker container that downloads and hosts the MeshCore web application from ht
 
 ## Features
 
-- **Pre-built Version**: Includes a pre-downloaded version of the app built into the image for offline usage
+- **Runtime-Only Download**: Downloads the MeshCore app only when the container starts, making builds faster and more reliable
+- **Loading Page**: Shows an attractive loading page with auto-refresh while the app is being downloaded
 - **Staged Downloads**: Downloads are validated before replacing the current version
 - **Atomic Switching**: Uses symlinks for zero-downtime version switching
 - **Persistent Storage**: Stores multiple versions in a Docker volume for rollback capability
@@ -64,19 +65,19 @@ docker logs -f meshcore-web
 
 ## How It Works
 
-1. **Build Time**: Downloads the MeshCore web application during Docker image build for offline availability
+1. **Build Time**: Creates a loading page with auto-refresh functionality (no external downloads)
 2. **First Run**:
-   - Sets up symlink to the pre-built version
-   - Attempts to download the latest version if internet is available
+   - Shows loading page immediately
+   - Attempts to download the latest MeshCore version in the background
    - Validates downloads before switching versions
+   - Auto-refreshes to the actual app once ready
 3. **Subsequent Runs**:
+   - Serves the cached version immediately if available
    - Checks if the original site is reachable
    - If reachable: Downloads and validates the latest version, then atomically switches to it
    - If unreachable or download fails: Continues using the current cached version
 4. **Serving**: nginx serves the static files through a symlink to the current version
-5. **Version Management**: Keeps multiple versions for rollback capability
-
-## Health Check
+5. **Version Management**: Keeps multiple versions for rollback capability## Health Check
 
 The container includes a health check endpoint at `/health` that returns "healthy" when the service is running properly.
 

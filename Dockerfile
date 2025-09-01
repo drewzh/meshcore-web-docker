@@ -10,14 +10,12 @@ RUN mkdir -p /app/web /app/scripts /app/versions
 COPY scripts/ /app/scripts/
 RUN chmod +x /app/scripts/*.sh
 
-# Pre-fetch the MeshCore web application during build
-RUN /app/scripts/download-meshcore.sh /app/versions/build-time "build-time" || \
-    (echo "WARNING: Failed to download MeshCore during build - container will work offline but won't have initial content" && \
-    mkdir -p /app/versions/build-time && \
-    echo "<html><body><h1>MeshCore Offline</h1><p>No internet connection available during build or runtime.</p></body></html>" > /app/versions/build-time/index.html)
+# Create loading page directory and copy the loading HTML
+RUN mkdir -p /app/versions/loading
+COPY loading.html /app/versions/loading/index.html
 
-# Set up the initial symlink to the build-time version
-RUN ln -sf /app/versions/build-time /app/web/current
+# Set up the initial symlink to the loading page
+RUN ln -sf /app/versions/loading /app/web/current
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf

@@ -35,16 +35,55 @@ jobs:
           # Start the container
           docker run -d --name meshcore-test -p 8080:80 meshcore-web:test
 
-          # Wait for container to be ready
-          timeout 120 bash -c 'until curl -f http://localhost:8080/health; do echo "Waiting for container..."; sleep 2; done'
+          # Give the container time to start and run the entrypoint
+          echo "Waiting for container to initialize..."
+          sleep 10
+
+          # Check container status
+          echo "Container status:"
+          docker ps -a --filter name=meshcore-test
+
+          # Check container logs
+          echo "Container logs:"
+          docker logs meshcore-test
+
+          # Wait for container to be ready (extended timeout for slow networks)
+          echo "Waiting for health endpoint..."
+          timeout 180 bash -c 'until curl -f http://localhost:8080/health; do echo "Waiting for container..."; sleep 5; done'
 
           # Test the health endpoint
+          echo "Testing health endpoint..."
           curl -f http://localhost:8080/health
 
-          # Test that we get some HTML content
-          curl -s http://localhost:8080/ | grep -q "html\|HTML" || (echo "No HTML content found" && exit 1)
+          # Test that we get some HTML content (could be loading page or actual app)
+          echo "Testing main page..."
+          response=$(curl -s http://localhost:8080/)
+          echo "Response preview: ${response:0:200}..."
 
-          # Show container logs for debugging
+          if echo "$response" | grep -qi "html\|<title\|<head\|<body"; then
+            echo "✅ HTML content found"
+            
+            # Check if it's the loading page or actual app
+            if echo "$response" | grep -qi "Loading MeshCore\|MeshCore.*Loading"; then
+              echo "📄 Loading page is being served (expected during startup)"
+            elif echo "$response" | grep -qi "meshcore"; then
+              echo "🎉 Actual MeshCore application is being served"
+            else
+              echo "📄 Some HTML content is being served"
+            fi
+          else
+            echo "❌ No HTML content found"
+            echo "Full response: $response"
+            exit 1
+          fi
+
+          # Test version endpoint if available
+          echo "Testing version endpoint..."
+          version_response=$(curl -s http://localhost:8080/version || echo "Version endpoint not available")
+          echo "Version info: $version_response"
+
+          # Show final container logs for debugging
+          echo "Final container logs:"
           docker logs meshcore-test
 
           # Clean up
