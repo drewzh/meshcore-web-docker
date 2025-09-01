@@ -59,6 +59,25 @@ else
         log "Loading version file content: $(cat /app/versions/loading/.version)"
     fi
 fi
+
+# Ensure version file exists for current symlink target
+if [ -L "/app/web/current" ] && [ -d "/app/web/current" ] && [ ! -f "/app/web/current/.version" ]; then
+    log "Version file missing, creating one for current target..."
+    current_target=$(readlink /app/web/current)
+    if [[ "$current_target" == */loading ]] || [[ "$(basename "$current_target")" == "loading" ]]; then
+        # Create version file for loading page
+        cat > /app/web/current/.version << 'EOF'
+{"status":"loading","version":"loading-page","description":"MeshCore is downloading..."}
+EOF
+        log "Created version file for loading page"
+    else
+        # Create a generic version file
+        cat > /app/web/current/.version << EOF
+{"status":"unknown","version":"$(date '+%Y%m%d-%H%M%S')","description":"Version file recreated"}
+EOF
+        log "Created generic version file"
+    fi
+fi
     ls -la /app/web/ 2>/dev/null || echo "No web directory"
     
     # Try to create a symlink to loading version if it exists
