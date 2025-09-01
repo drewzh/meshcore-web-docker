@@ -35,6 +35,12 @@ jobs:
           # Start the container
           docker run -d --name meshcore-test -p 8080:80 meshcore-web:test
 
+          # Debug: Check the file structure before testing
+          echo "=== Checking file structure ==="
+          docker exec meshcore-test ls -la /app/web/
+          docker exec meshcore-test ls -la /app/versions/
+          docker exec meshcore-test ls -la /app/versions/loading/ || echo "Loading directory not found"
+
           # Wait for container to be ready
           timeout 120 bash -c 'until curl -f http://localhost:8080/health; do echo "Waiting for container..."; sleep 2; done'
 
@@ -43,8 +49,13 @@ jobs:
 
           # Test that we get HTML content (loading page or actual app)
           response=$(curl -s http://localhost:8080/)
+          echo "Response content: $response"
           if echo "$response" | grep -qi "html\|<title\|<head\|<body"; then
             echo "✅ HTML content found"
+            if echo "$response" | grep -qi "404"; then
+              echo "❌ But it's a 404 error - file structure issue"
+              exit 1
+            fi
           else
             echo "❌ No HTML content found"
             exit 1
