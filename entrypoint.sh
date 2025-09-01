@@ -38,6 +38,29 @@ if [ ! -L "/app/web/current" ] || [ ! -d "/app/web/current" ]; then
     log "Web directory contents:"
     ls -la /app/web/ 2>/dev/null || echo "No web directory"
     
+    # Try to recreate the symlink to loading page
+    log "Attempting to recreate symlink to loading page..."
+    mkdir -p /app/web
+    ln -sf /app/versions/loading /app/web/current
+fi
+
+# Debug: Check symlink and version file status
+log "Symlink verification:"
+log "Current symlink exists: $([ -L /app/web/current ] && echo "Yes" || echo "No")"
+log "Current symlink target: $(readlink /app/web/current 2>/dev/null || echo "None")"
+log "Target directory exists: $([ -d /app/web/current ] && echo "Yes" || echo "No")"
+log "Version file exists: $([ -f /app/web/current/.version ] && echo "Yes" || echo "No")"
+if [ -f /app/web/current/.version ]; then
+    log "Version file content: $(cat /app/web/current/.version)"
+else
+    log "Version file location should be: /app/web/current/.version"
+    log "Checking if loading version file exists: $([ -f /app/versions/loading/.version ] && echo "Yes" || echo "No")"
+    if [ -f /app/versions/loading/.version ]; then
+        log "Loading version file content: $(cat /app/versions/loading/.version)"
+    fi
+fi
+    ls -la /app/web/ 2>/dev/null || echo "No web directory"
+    
     # Try to create a symlink to loading version if it exists
     if [ -d "/app/versions/loading" ]; then
         log "Found loading version, creating symlink..."
