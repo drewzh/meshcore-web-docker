@@ -55,6 +55,8 @@ log "Files in current version: $(ls -A /app/web/current | wc -l)"
 log "Index file present: $([ -f /app/web/current/index.html ] && echo "Yes" || echo "No")"
 
 log "Web content is ready, starting nginx..."
+log "🌐 MeshCore web server starting on port 80 (container internal)"
+log "📡 Access the application via your configured port mapping (e.g., http://localhost:8080)"
 
 # Start nginx in the foreground
 exec nginx -g "daemon off;"
