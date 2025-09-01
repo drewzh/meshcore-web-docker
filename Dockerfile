@@ -20,6 +20,10 @@ RUN ln -sf /app/versions/loading /app/web/current
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
 
+# Debug: Check what files are available in the build context
+COPY . /debug-context/
+RUN echo "=== Build context files ===" && ls -la /debug-context/
+
 # Copy entrypoint script and make it executable
 COPY entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh

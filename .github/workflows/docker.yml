@@ -18,6 +18,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Debug build context
+        run: |
+          echo "=== Files in build context ==="
+          ls -la
+          echo "=== Checking entrypoint.sh specifically ==="
+          ls -la entrypoint.sh || echo "❌ entrypoint.sh not found in checkout"
+          file entrypoint.sh || echo "❌ Cannot check entrypoint.sh file type"
+          head -3 entrypoint.sh || echo "❌ Cannot read entrypoint.sh"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
