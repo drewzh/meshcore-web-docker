@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  meshcore-web:
+    build: .
+    ports:
+      - "8080:80"
+    volumes:
+      - meshcore-versions:/app/versions
+    environment:
+      - TZ=UTC
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  meshcore-versions:
