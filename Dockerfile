@@ -30,6 +30,10 @@ RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 # Environment variables for MeshCore download configuration
 ENV MESHCORE_BASE_URL="https://files.liamcottle.net/MeshCore"
 
+# Environment variables for Unraid compatibility (optional)
+ENV PUID=""
+ENV PGID=""
+
 # Expose port 80
 EXPOSE 80
 

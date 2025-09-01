@@ -141,12 +141,105 @@ EOF
     return 0
 }
 
+# Function to initialize directory structure
+init_directories() {
+    log "Initializing directory structure..."
+    
+    # Create main directories with proper permissions
+    if ! mkdir -p "$VERSIONS_DIR" "$WEB_DIR" 2>/dev/null; then
+        log "ERROR: Failed to create directories. Checking permissions..."
+        log "VERSIONS_DIR: $VERSIONS_DIR (exists: $([ -d "$VERSIONS_DIR" ] && echo "Yes" || echo "No"))"
+        log "WEB_DIR: $WEB_DIR (exists: $([ -d "$WEB_DIR" ] && echo "Yes" || echo "No"))"
+        
+        # Try with more verbose error reporting
+        if ! mkdir -p "$VERSIONS_DIR" 2>&1; then
+            log "ERROR: Cannot create $VERSIONS_DIR"
+            return 1
+        fi
+        if ! mkdir -p "$WEB_DIR" 2>&1; then
+            log "ERROR: Cannot create $WEB_DIR"  
+            return 1
+        fi
+    fi
+    
+    # Ensure loading page exists (important for volume mounts)
+    local loading_dir="$VERSIONS_DIR/loading"
+    if [ ! -d "$loading_dir" ]; then
+        log "Creating loading page directory: $loading_dir"
+        mkdir -p "$loading_dir"
+    fi
+    
+    # Create loading page if it doesn't exist (volume mount scenario)
+    if [ ! -f "$loading_dir/index.html" ]; then
+        log "Creating loading page content (volume mount detected)"
+        cat > "$loading_dir/index.html" << 'EOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeshCore - Loading</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0; padding: 40px; text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            color: white;
+        }
+        .container { background: rgba(255,255,255,0.1); padding: 40px; border-radius: 20px; backdrop-filter: blur(10px); }
+        .spinner { border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid white; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        h1 { margin: 0 0 20px 0; font-size: 2.5em; font-weight: 300; }
+        p { font-size: 1.2em; margin: 10px 0; opacity: 0.9; }
+    </style>
+    <script>
+        let dots = 0;
+        setInterval(() => {
+            dots = (dots + 1) % 4;
+            const loading = document.querySelector('.loading-text');
+            if (loading) loading.textContent = 'Downloading MeshCore' + '.'.repeat(dots);
+        }, 500);
+        setTimeout(() => location.reload(), 5000);
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 MeshCore</h1>
+        <div class="spinner"></div>
+        <p class="loading-text">Downloading MeshCore</p>
+        <p style="font-size:0.9em; opacity:0.7;">This page will refresh automatically...</p>
+    </div>
+</body>
+</html>
+EOF
+    fi
+    
+    # Create loading page version file if it doesn't exist  
+    if [ ! -f "$loading_dir/.version" ]; then
+        log "Creating loading page version file"
+        cat > "$loading_dir/.version" << 'EOF'
+{"status":"loading","version":"loading-page","description":"MeshCore is downloading..."}
+EOF
+    fi
+    
+    # Set proper permissions for Unraid compatibility
+    chmod -R 755 "$VERSIONS_DIR" 2>/dev/null || true
+    chmod -R 755 "$WEB_DIR" 2>/dev/null || true
+    
+    log "Directory structure initialized successfully"
+    return 0
+}
+
 # Function to update MeshCore
 update_meshcore() {
     log "Starting MeshCore update process..."
     
-    # Create directories
-    mkdir -p "$VERSIONS_DIR" "$WEB_DIR"
+    # Initialize directory structure (handles volume mounts)
+    if ! init_directories; then
+        log "ERROR: Failed to initialize directory structure"
+        return 1
+    fi
     
     # Always auto-detect the latest version
     log "Finding latest MeshCore version..."
@@ -225,9 +318,18 @@ cleanup_old_versions() {
 ensure_working_version() {
     log "Ensuring we have a working MeshCore installation..."
     
+    # First, ensure directories exist (important for volume mounts)
+    if [ ! -d "$VERSIONS_DIR" ] || [ ! -d "$WEB_DIR" ]; then
+        log "Directories missing, initializing structure..."
+        if ! init_directories; then
+            log "ERROR: Failed to initialize directory structure"
+            return 1
+        fi
+    fi
+    
     # First, check if we have any downloaded versions available (prefer them over loading page)
     local latest_downloaded_version
-    if latest_downloaded_version=$(find "$VERSIONS_DIR" -mindepth 1 -maxdepth 1 -type d -name "v*" | sort -V | tail -1); then
+    if latest_downloaded_version=$(find "$VERSIONS_DIR" -mindepth 1 -maxdepth 1 -type d -name "v*" 2>/dev/null | sort -V | tail -1); then
         if [ -n "$latest_downloaded_version" ] && [ -d "$latest_downloaded_version" ] && [ -f "$latest_downloaded_version/index.html" ]; then
             log "Found downloaded version: $(basename "$latest_downloaded_version")"
             rm -f "$CURRENT_LINK"
@@ -251,7 +353,16 @@ ensure_working_version() {
     
     log "No valid current version found, falling back to loading page"
     
-    # Ensure loading page exists as fallback
+    # Ensure loading page exists as fallback (create if needed for volume mounts)
+    if [ ! -d "$VERSIONS_DIR/loading" ] || [ ! -f "$VERSIONS_DIR/loading/index.html" ]; then
+        log "Loading page missing, recreating..."
+        if ! init_directories; then
+            log "ERROR: Failed to initialize loading page"
+            return 1
+        fi
+    fi
+    
+    # Set up symlink to loading page
     if [ -d "$VERSIONS_DIR/loading" ] && [ -f "$VERSIONS_DIR/loading/index.html" ]; then
         rm -f "$CURRENT_LINK"
         ln -sf "$VERSIONS_DIR/loading" "$CURRENT_LINK"
