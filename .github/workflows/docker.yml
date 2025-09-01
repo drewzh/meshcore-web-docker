@@ -50,11 +50,16 @@ jobs:
           docker run --rm meshcore-web:test ls -la / | grep entrypoint || echo "❌ entrypoint.sh not found in root"
           docker run --rm meshcore-web:test ls -la /entrypoint.sh || echo "❌ entrypoint.sh not found"
           docker run --rm meshcore-web:test cat /entrypoint.sh | head -3 || echo "❌ Cannot read file"
-          
+
           # Try different approaches to check the file
           echo "=== Alternative checks ==="
           docker run --rm meshcore-web:test find / -name "entrypoint*" 2>/dev/null || echo "No entrypoint files found"
-          docker run --rm meshcore-web:test which bash || echo "Bash not found"
+          docker run --rm meshcore-web:test which sh || echo "sh not found"
+          docker run --rm meshcore-web:test which bash || echo "bash not found"
+          
+          # Test entrypoint with explicit shell
+          echo "=== Testing entrypoint with explicit shell ==="
+          docker run --rm meshcore-web:test /bin/sh -c "ls -la /entrypoint.sh" || echo "Cannot access entrypoint with sh"
 
           # Start the container
           echo "=== Starting container ==="
