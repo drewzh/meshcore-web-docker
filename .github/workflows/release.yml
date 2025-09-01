@@ -1,0 +1,102 @@
+name: Auto Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate version tag
+        id: version
+        run: |
+          # Generate semantic version based on date and commit
+          VERSION="v$(date '+%Y.%m.%d')-$(git rev-parse --short HEAD)"
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
+
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          if git tag -l "${{ steps.version.outputs.tag }}" | grep -q "${{ steps.version.outputs.tag }}"; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag ${{ steps.version.outputs.tag }} already exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Tag ${{ steps.version.outputs.tag }} does not exist"
+          fi
+
+      - name: Create tag
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git tag -a "${{ steps.version.outputs.tag }}" -m "Auto-release ${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"
+
+      - name: Generate release notes
+        id: release_notes
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          # Get commit messages since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          
+          if [ -n "$LAST_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s (%h)" ${LAST_TAG}..HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --max-count=10)
+          fi
+          
+          # Create release notes
+          cat > release_notes.md << EOF
+          ## MeshCore Web Docker Release ${{ steps.version.outputs.tag }}
+          
+          **Auto-generated release from main branch**
+          
+          ### Changes in this release:
+          $COMMITS
+          
+          ### Docker Images
+          - \`ghcr.io/${{ github.repository }}:${{ steps.version.outputs.tag }}\`
+          - \`ghcr.io/${{ github.repository }}:latest\`
+          
+          ### Usage
+          \`\`\`bash
+          docker run -p 8080:80 ghcr.io/${{ github.repository }}:${{ steps.version.outputs.tag }}
+          \`\`\`
+          
+          ### Features
+          - Downloads and serves MeshCore web application from https://app.meshcore.nz/
+          - Automatic updates and version management
+          - Loading page with progress indication
+          - Health check endpoint at \`/health\`
+          - Version information at \`/version\`
+          EOF
+
+      - name: Create GitHub Release
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --title "MeshCore Web Docker ${{ steps.version.outputs.tag }}" \
+            --notes-file release_notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Output release info
+        if: steps.check_tag.outputs.exists == 'false'
+        run: |
+          echo "🎉 Created release: ${{ steps.version.outputs.tag }}"
+          echo "📦 Docker images will be available as:"
+          echo "   - ghcr.io/${{ github.repository }}:${{ steps.version.outputs.tag }}"
+          echo "   - ghcr.io/${{ github.repository }}:latest"
