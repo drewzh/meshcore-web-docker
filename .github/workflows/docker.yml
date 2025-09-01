@@ -34,13 +34,13 @@ jobs:
         run: |
           # Start the container
           docker run -d --name meshcore-test -p 8080:80 meshcore-web:test
-          
+
           # Wait for container to be ready
           timeout 120 bash -c 'until curl -f http://localhost:8080/health; do echo "Waiting for container..."; sleep 2; done'
-          
+
           # Test the health endpoint
           curl -f http://localhost:8080/health
-          
+
           # Test that we get HTML content (loading page or actual app)
           response=$(curl -s http://localhost:8080/)
           if echo "$response" | grep -qi "html\|<title\|<head\|<body"; then
@@ -49,7 +49,7 @@ jobs:
             echo "❌ No HTML content found"
             exit 1
           fi
-          
+
           # Test version endpoint if available
           curl -s http://localhost:8080/version || echo "Version endpoint not yet available"
 
