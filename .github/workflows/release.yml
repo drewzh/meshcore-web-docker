@@ -51,31 +51,31 @@ jobs:
         run: |
           # Get commit messages since last tag
           LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          
+
           if [ -n "$LAST_TAG" ]; then
             COMMITS=$(git log --pretty=format:"- %s (%h)" ${LAST_TAG}..HEAD)
           else
             COMMITS=$(git log --pretty=format:"- %s (%h)" --max-count=10)
           fi
-          
+
           # Create release notes
           cat > release_notes.md << EOF
           ## MeshCore Web Docker Release ${{ steps.version.outputs.tag }}
-          
+
           **Auto-generated release from main branch**
-          
+
           ### Changes in this release:
           $COMMITS
-          
+
           ### Docker Images
           - \`ghcr.io/${{ github.repository }}:${{ steps.version.outputs.tag }}\`
           - \`ghcr.io/${{ github.repository }}:latest\`
-          
+
           ### Usage
           \`\`\`bash
           docker run -p 8080:80 ghcr.io/${{ github.repository }}:${{ steps.version.outputs.tag }}
           \`\`\`
-          
+
           ### Features
           - Downloads and serves MeshCore web application from https://app.meshcore.nz/
           - Automatic updates and version management

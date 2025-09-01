@@ -1,33 +1,47 @@
 # MeshCore Web Docker
 
-A Docker container that downloads and hosts the MeshCore web application from https://app.meshcore.nz/.
+A Docker container that downloads and hosts the MeshCore web application from [files.liamcottle.net](https://files.liamcottle.net/MeshCore/).
 
 ## Features
 
-- **Runtime-Only Download**: Downloads the MeshCore app only when the container starts, making builds faster and more reliable
+- **Runtime Download**: Downloads MeshCore from official zip files when the container starts
 - **Loading Page**: Shows an attractive loading page with auto-refresh while the app is being downloaded
-- **Staged Downloads**: Downloads are validated before replacing the current version
+- **Version Management**: Automatically detects and downloads the latest version or use a specific version
 - **Atomic Switching**: Uses symlinks for zero-downtime version switching
-- **Persistent Storage**: Stores multiple versions in a Docker volume for rollback capability
-- **Auto-Update**: Checks for and downloads updates on container restart (when the site is reachable)
-- **Graceful Fallback**: Uses cached version if the original site is unreachable or download fails
-- **Version Management**: Keep multiple versions and switch between them
-- **Production Ready**: Includes nginx with optimized configuration, security headers, and health checks
+- **Persistent Storage**: Stores versions in a Docker volume for faster subsequent starts
+- **Graceful Fallback**: Uses cached version if download fails
+- **Production Ready**: Includes nginx with optimized configuration and health checks
+- **Auto-Updates**: Checks for newer versions on container restart
 
 ## Quick Start
 
 ### Using Docker Compose (Recommended)
 
-```bash
-# Clone the repository
-git clone https://github.com/drewzh/meshcore-web-docker.git
-cd meshcore-web-docker
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  meshcore:
+    image: ghcr.io/drewzh/meshcore-web-docker:latest
+    ports:
+      - "8080:80"
+    volumes:
+      - meshcore-data:/app/versions
+    environment:
+      - TZ=UTC
+      # Optional: Specify a specific version
+      # - MESHCORE_ZIP_URL=https://files.liamcottle.net/MeshCore/v1.25.0/MeshCore-v1.25.0+47-aef292a-web.zip
 
+volumes:
+  meshcore-data:
+```
+
+```bash
 # Start the container
 docker-compose up -d
 
 # Check logs
-docker-compose logs -f
+docker-compose logs -f meshcore
 ```
 
 The application will be available at http://localhost:8080
@@ -35,15 +49,12 @@ The application will be available at http://localhost:8080
 ### Using Docker directly
 
 ```bash
-# Build the image
-docker build -t meshcore-web .
-
 # Run the container
 docker run -d \
   --name meshcore-web \
   -p 8080:80 \
-  -v meshcore-data:/app/web \
-  meshcore-web
+  -v meshcore-data:/app/versions \
+  ghcr.io/drewzh/meshcore-web-docker:latest
 
 # Check logs
 docker logs -f meshcore-web
@@ -53,78 +64,113 @@ docker logs -f meshcore-web
 
 ### Environment Variables
 
-- `TZ`: Timezone (default: UTC)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TZ` | `UTC` | Timezone for logs |
+| `MESHCORE_BASE_URL` | `https://files.liamcottle.net/MeshCore` | Base URL for MeshCore releases |
+| `MESHCORE_ZIP_URL` | `(auto-detected)` | Specific version URL - if not set, latest will be auto-detected |
 
 ### Ports
 
-- `80`: nginx web server (mapped to host port 8080 in examples)
+- `80`: nginx web server (map to desired host port)
 
 ### Volumes
 
-- `/app/versions`: Version storage directory (should be mounted to persist downloads and enable rollbacks)
+- `/app/versions`: Version storage directory (should be mounted to persist downloads)
 
 ## How It Works
 
 1. **Build Time**: Creates a loading page with auto-refresh functionality (no external downloads)
-2. **First Run**:
-   - Shows loading page immediately
-   - Attempts to download the latest MeshCore version in the background
+2. **Container Start**:
+   - Shows loading page immediately for instant response
+   - Downloads MeshCore from official zip files in the background
+   - Auto-detects latest version if no specific version is configured
    - Validates downloads before switching versions
-   - Auto-refreshes to the actual app once ready
-3. **Subsequent Runs**:
-   - Serves the cached version immediately if available
-   - Checks if the original site is reachable
-   - If reachable: Downloads and validates the latest version, then atomically switches to it
-   - If unreachable or download fails: Continues using the current cached version
-4. **Serving**: nginx serves the static files through a symlink to the current version
-5. **Version Management**: Keeps multiple versions for rollback capability## Health Check
+   - Auto-refreshes browser to show the actual app once ready
+3. **Version Management**:
+   - Automatically detects the latest available version from files.liamcottle.net
+   - Downloads and extracts zip files to versioned directories
+   - Uses symlinks for atomic switching between versions
+   - Keeps previously downloaded versions for faster restarts
 
-The container includes a health check endpoint at `/health` that returns "healthy" when the service is running properly.
+## Endpoints
 
-Additionally, there's a `/version` endpoint that returns JSON information about the currently active version.
+- `/` - MeshCore web application (or loading page during download)
+- `/health` - Health check endpoint (returns "healthy")
+- `/version` - JSON information about the currently active version
 
 ## Version Management
 
-The container supports multiple versions and provides tools for managing them:
+The container automatically manages MeshCore versions:
 
-### Using the version management script
+### Automatic Latest Version
 
-```bash
-# Show current version and available versions
-./manage-versions.sh status
+By default, the container will:
+1. Check files.liamcottle.net for the latest available version
+2. Download and install it if not already cached
+3. Switch to the new version automatically
 
-# List all available versions
-./manage-versions.sh list
+### Specific Version
 
-# Switch to a specific version (e.g., rollback)
-./manage-versions.sh switch build-time
-
-# Force update to latest version
-./manage-versions.sh update
-
-# Validate current version
-./manage-versions.sh validate
-
-# Clean up old versions (keeps current + 2 most recent)
-./manage-versions.sh cleanup
-```
-
-### Manual version management
+To use a specific version, set the `MESHCORE_ZIP_URL` environment variable:
 
 ```bash
-# Check what versions are available
-docker exec <container-name> ls -la /app/versions/
-
-# See current version info
-docker exec <container-name> cat /app/web/current/.version
-
-# Check which version is currently active
-docker exec <container-name> readlink /app/web/current
+docker run -d \
+  --name meshcore-web \
+  -p 8080:80 \
+  -v meshcore-data:/app/versions \
+  -e MESHCORE_ZIP_URL="https://files.liamcottle.net/MeshCore/v1.24.0/MeshCore-v1.24.0+46-9bf123c-web.zip" \
+  ghcr.io/drewzh/meshcore-web-docker:latest
 ```
 
-## Build Arguments
+### Unraid Integration
 
-None currently supported.
+For Unraid users, this container is perfect for hosting MeshCore:
+
+1. Install from Community Applications or add the repository manually
+2. Set your desired port mapping (e.g., 8080:80)
+3. Configure a volume mapping for `/app/versions` to persist downloads
+4. Optionally set `MESHCORE_ZIP_URL` to pin to a specific version
+
+## Development
+
+### Building Locally
+
+```bash
+git clone https://github.com/drewzh/meshcore-web-docker.git
+cd meshcore-web-docker
+docker build -t meshcore-web .
+```
+
+### Testing
+
+```bash
+# Build and run
+docker build -t meshcore-web .
+docker run -p 8080:80 meshcore-web
+
+# Check that it responds
+curl http://localhost:8080/health
+curl http://localhost:8080/version
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test the build and functionality
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
+
+## Acknowledgments
+
+- [MeshCore](https://github.com/liamcottle/meshcore) by Liam Cottle for the excellent Meshtastic web interface
+- [files.liamcottle.net](https://files.liamcottle.net/MeshCore/) for providing direct zip file downloads
+
 
 ## Development
 

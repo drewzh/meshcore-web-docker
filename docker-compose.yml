@@ -1,21 +1,23 @@
 version: "3.8"
 
 services:
-  meshcore-web:
-    build: .
+  meshcore:
+    image: ghcr.io/drewzh/meshcore-web-docker:latest
     ports:
       - "8080:80"
     volumes:
-      - meshcore-versions:/app/versions
+      - meshcore-data:/app/versions
     environment:
       - TZ=UTC
+      # Optional: Specify a specific version
+      # - MESHCORE_ZIP_URL=https://files.liamcottle.net/MeshCore/v1.25.0/MeshCore-v1.25.0+47-aef292a-web.zip
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
 
 volumes:
-  meshcore-versions:
+  meshcore-data:

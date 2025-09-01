@@ -1,7 +1,7 @@
 FROM nginx:alpine
 
 # Install required tools for downloading and processing the web app
-RUN apk add --no-cache wget curl grep sed findutils file bash unzip
+RUN apk add --no-cache curl grep sed findutils file bash unzip
 
 # Create directories
 RUN mkdir -p /app/web /app/scripts /app/versions
