@@ -4,10 +4,15 @@ A Docker container that downloads and hosts the MeshCore web application from [f
 
 ## ⚠️ IMPORTANT: HTTPS Required for Bluetooth Features
 
-**MeshCore requires HTTPS to access Bluetooth devices through the Web Bluetooth API.** You have two options:
+**MeshCore requires HTTPS to access Bluetooth devices through the Web Bluetooth API.** This container serves HTTP only and is designed to be used behind a reverse proxy that handles HTTPS termination.
 
-1. **Reverse Proxy Setup** (Recommended for production): Use HTTP mode with a reverse proxy (nginx, Traefik, etc.) that handles HTTPS
-2. **Direct HTTPS Access**: Enable built-in HTTPS with `ENABLE_HTTPS=true` for direct access
+**Popular reverse proxy options:**
+
+- **nginx Proxy Manager** (GUI-based, beginner-friendly)
+- **Traefik** (automatic HTTPS with Let's Encrypt)
+- **Caddy** (automatic HTTPS, simple configuration)
+- **nginx** (traditional, highly configurable)
+- **Cloudflare Tunnel** (zero-config HTTPS)
 
 **Without HTTPS, you cannot connect to Bluetooth devices - the browser will block the Web Bluetooth API.**
 
@@ -21,14 +26,14 @@ A Docker container that downloads and hosts the MeshCore web application from [f
 - **Graceful Fallback**: Uses cached version if download fails
 - **Production Ready**: Includes nginx with optimized configuration and health checks
 - **Auto-Updates**: Checks for newer versions on container restart
-- **Configurable HTTPS**: Optional built-in HTTPS support with automatic SSL certificate generation
+- **Reverse Proxy Ready**: HTTP-only design perfect for use behind HTTPS reverse proxies
 
 ## Quick Start
 
-### Option 1: HTTP Only (For Reverse Proxy Setup)
+### Basic Setup
 
 ```yaml
-# docker-compose.yml - HTTP only for reverse proxy
+# docker-compose.yml
 version: "3.8"
 services:
   meshcore:
@@ -39,34 +44,10 @@ services:
       - meshcore-data:/app/versions
     environment:
       - TZ=UTC
-      - ENABLE_HTTPS=false # HTTP only
 
 volumes:
   meshcore-data:
 ```
-
-### Option 2: HTTPS Enabled (For Direct Access with Bluetooth)
-
-```yaml
-# docker-compose.yml - HTTPS enabled for direct access
-version: "3.8"
-services:
-  meshcore:
-    image: ghcr.io/drewzh/meshcore-web-docker:latest
-    ports:
-      - "8080:80" # HTTP access
-      - "8443:443" # HTTPS access (required for Bluetooth)
-    volumes:
-      - meshcore-data:/app/versions
-    environment:
-      - TZ=UTC
-      - ENABLE_HTTPS=true # Enable HTTPS
-
-volumes:
-  meshcore-data:
-```
-
-### Starting the Container
 
 ```bash
 # Start the container
@@ -75,6 +56,189 @@ docker-compose up -d
 # Check logs
 docker-compose logs -f meshcore
 ```
+
+**Access:** http://localhost:8080 (HTTP only - add reverse proxy for HTTPS/Bluetooth support)
+
+## HTTPS Setup with Reverse Proxies
+
+Since MeshCore requires HTTPS for Bluetooth functionality, here are several ways to add HTTPS:
+
+### Option 1: nginx Proxy Manager (Easiest - GUI Based)
+
+Perfect for beginners! Provides a web interface for managing reverse proxies.
+
+```yaml
+# docker-compose.yml with nginx Proxy Manager
+version: "3.8"
+services:
+  meshcore:
+    image: ghcr.io/drewzh/meshcore-web-docker:latest
+    volumes:
+      - meshcore-data:/app/versions
+    environment:
+      - TZ=UTC
+    # No ports exposed - internal only
+
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81" # Admin interface
+    volumes:
+      - npm-data:/data
+      - npm-letsencrypt:/etc/letsencrypt
+    depends_on:
+      - meshcore
+
+volumes:
+  meshcore-data:
+  npm-data:
+  npm-letsencrypt:
+```
+
+1. Access admin interface at http://localhost:81
+2. Add a proxy host pointing to `meshcore:80`
+3. Enable SSL with Let's Encrypt
+
+### Option 2: Traefik (Automatic HTTPS)
+
+Great for Docker-based setups with automatic Let's Encrypt certificates.
+
+```yaml
+# docker-compose.yml with Traefik
+version: "3.8"
+services:
+  traefik:
+    image: traefik:v3.0
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.email=your-email@example.com"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "traefik-acme:/acme.json"
+
+  meshcore:
+    image: ghcr.io/drewzh/meshcore-web-docker:latest
+    volumes:
+      - meshcore-data:/app/versions
+    environment:
+      - TZ=UTC
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.meshcore.rule=Host(`meshcore.yourdomain.com`)"
+      - "traefik.http.routers.meshcore.tls.certresolver=letsencrypt"
+
+volumes:
+  meshcore-data:
+  traefik-acme:
+```
+
+### Option 3: Caddy (Simplest Configuration)
+
+Caddy automatically handles HTTPS certificates with minimal configuration.
+
+```yaml
+# docker-compose.yml with Caddy
+version: "3.8"
+services:
+  caddy:
+    image: caddy:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - meshcore
+
+  meshcore:
+    image: ghcr.io/drewzh/meshcore-web-docker:latest
+    volumes:
+      - meshcore-data:/app/versions
+    environment:
+      - TZ=UTC
+
+volumes:
+  meshcore-data:
+  caddy-data:
+  caddy-config:
+```
+
+Create a `Caddyfile`:
+
+```
+meshcore.yourdomain.com {
+    reverse_proxy meshcore:80
+}
+```
+
+### Option 4: Cloudflare Tunnel (Zero Configuration)
+
+Perfect for external access without port forwarding or certificates.
+
+```bash
+# Install cloudflared
+docker run -d \
+  --name cloudflare-tunnel \
+  cloudflare/cloudflared:latest tunnel \
+  --no-autoupdate run \
+  --token YOUR_TUNNEL_TOKEN
+
+# Your MeshCore container runs normally
+docker run -d \
+  --name meshcore \
+  -v meshcore-data:/app/versions \
+  ghcr.io/drewzh/meshcore-web-docker:latest
+```
+
+1. Create tunnel at https://dash.cloudflare.com
+2. Point tunnel to `http://meshcore:80`
+3. Access via your Cloudflare domain (automatically HTTPS)
+
+### Option 5: Traditional nginx
+
+For advanced users who want full control.
+
+```yaml
+# docker-compose.yml with nginx
+version: "3.8"
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - meshcore
+
+  meshcore:
+    image: ghcr.io/drewzh/meshcore-web-docker:latest
+    volumes:
+      - meshcore-data:/app/versions
+    environment:
+      - TZ=UTC
+
+volumes:
+  meshcore-data:
+```
+
+Create an `nginx.conf` with SSL configuration and proxy to `http://meshcore:80`.
+
+````
 
 ### Accessing the Application
 
@@ -100,7 +264,7 @@ docker run -d \
   -e ENABLE_HTTPS=false \
   -v meshcore-data:/app/versions \
   ghcr.io/drewzh/meshcore-web-docker:latest
-```
+````
 
 **HTTPS Enabled Mode:**
 
@@ -123,18 +287,16 @@ docker logs -f meshcore-web
 
 ### Environment Variables
 
-| Variable            | Default                                 | Description                                   |
-| ------------------- | --------------------------------------- | --------------------------------------------- |
-| `TZ`                | `UTC`                                   | Timezone for logs                             |
-| `MESHCORE_BASE_URL` | `https://files.liamcottle.net/MeshCore` | Base URL for MeshCore releases                |
-| `ENABLE_HTTPS`      | `false`                                 | Enable HTTPS support (required for Bluetooth) |
-| `PUID`              | (empty)                                 | User ID for Unraid compatibility (optional)   |
-| `PGID`              | (empty)                                 | Group ID for Unraid compatibility (optional)  |
+| Variable            | Default                                 | Description                                  |
+| ------------------- | --------------------------------------- | -------------------------------------------- |
+| `TZ`                | `UTC`                                   | Timezone for logs                            |
+| `MESHCORE_BASE_URL` | `https://files.liamcottle.net/MeshCore` | Base URL for MeshCore releases               |
+| `PUID`              | (empty)                                 | User ID for Unraid compatibility (optional)  |
+| `PGID`              | (empty)                                 | Group ID for Unraid compatibility (optional) |
 
 ### Ports
 
-- `80`: HTTP web server (always available)
-- `443`: HTTPS web server (only when `ENABLE_HTTPS=true`)
+- `80`: HTTP web server
 
 ### Volumes
 
@@ -157,18 +319,13 @@ docker logs -f meshcore-web
 
 ## Endpoints
 
-**Available on both HTTP and HTTPS (when enabled):**
-
 - `/` - MeshCore web application (or loading page during download)
 - `/health` - Health check endpoint (returns "healthy")
 - `/version` - JSON information about the currently active version
 
-**Access URLs:**
+**Direct Access:** `http://localhost:8080/` (when mapped to port 8080)
 
-- HTTP: `http://localhost:8080/` (when mapped to port 8080)
-- HTTPS: `https://localhost:8443/` (when HTTPS enabled and mapped to port 8443)
-
-> **🔑 Important**: For Bluetooth functionality, you MUST use HTTPS - either through this container's built-in HTTPS support or via a reverse proxy.
+> **🔑 Important**: For Bluetooth functionality, you MUST use HTTPS via a reverse proxy (see HTTPS setup examples above).
 
 ## Version Management
 

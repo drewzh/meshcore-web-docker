@@ -1,7 +1,6 @@
 version: "3.8"
 
 services:
-  # HTTP only configuration (for use behind reverse proxy)
   meshcore:
     image: ghcr.io/drewzh/meshcore-web-docker:latest
     ports:
@@ -10,7 +9,6 @@ services:
       - meshcore-data:/app/versions
     environment:
       - TZ=UTC
-      - ENABLE_HTTPS=false # HTTP only - use reverse proxy for HTTPS
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
@@ -18,25 +16,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-
-  # HTTPS enabled configuration (for direct access with Bluetooth support)
-  # meshcore-https:
-  #   image: ghcr.io/drewzh/meshcore-web-docker:latest
-  #   ports:
-  #     - "8080:80"   # HTTP access
-  #     - "8443:443"  # HTTPS access (required for Bluetooth)
-  #   volumes:
-  #     - meshcore-data:/app/versions
-  #   environment:
-  #     - TZ=UTC
-  #     - ENABLE_HTTPS=true
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "-k", "https://localhost/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 60s
 
 volumes:
   meshcore-data:
