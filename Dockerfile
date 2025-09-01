@@ -29,7 +29,7 @@ RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 # Environment variables for MeshCore download configuration
 ENV MESHCORE_BASE_URL="https://files.liamcottle.net/MeshCore"
-ENV MESHCORE_ZIP_URL="https://files.liamcottle.net/MeshCore/v1.25.0/MeshCore-v1.25.0+47-aef292a-web.zip"
+# MESHCORE_ZIP_URL is optional - if not set, latest version will be auto-detected
 
 # Expose port 80
 EXPOSE 80

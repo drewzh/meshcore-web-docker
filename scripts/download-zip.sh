@@ -4,9 +4,9 @@ set -e
 
 # Configuration
 MESHCORE_BASE_URL="${MESHCORE_BASE_URL:-https://files.liamcottle.net/MeshCore}"
-MESHCORE_ZIP_URL="${MESHCORE_ZIP_URL:-https://files.liamcottle.net/MeshCore/v1.25.0/MeshCore-v1.25.0+47-aef292a-web.zip}"
-VERSIONS_DIR="/app/versions"
-WEB_DIR="/app/web"
+MESHCORE_ZIP_URL="${MESHCORE_ZIP_URL:-}"  # Empty means auto-detect
+VERSIONS_DIR="${VERSIONS_DIR:-/app/versions}"
+WEB_DIR="${WEB_DIR:-/app/web}"
 CURRENT_LINK="$WEB_DIR/current"
 
 log() {
@@ -15,18 +15,18 @@ log() {
 
 # Function to find latest version from the files server
 find_latest_version() {
-    log "Attempting to find latest version from $MESHCORE_BASE_URL..."
+    log "Attempting to find latest version from $MESHCORE_BASE_URL..." >&2
     
     # Try to get directory listing and find the latest version
-    if latest_version=$(curl -s --max-time 10 "$MESHCORE_BASE_URL/" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -1); then
+    if latest_version=$(curl -s --max-time 15 "$MESHCORE_BASE_URL/" | grep -oE 'href="\.\/v[0-9]+\.[0-9]+\.[0-9]+\/"' | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sort -V | tail -1); then
         if [ -n "$latest_version" ]; then
-            log "Found latest version: $latest_version"
+            log "Found latest version: $latest_version" >&2
             echo "$latest_version"
             return 0
         fi
     fi
     
-    log "Could not auto-detect latest version, using default"
+    log "Could not auto-detect latest version, using default" >&2
     return 1
 }
 
@@ -34,15 +34,21 @@ find_latest_version() {
 get_download_url() {
     local version="$1"
     
+    log "Getting download URL for version: $version" >&2
+    
     # Try to get the exact filename from the version directory
     local version_url="$MESHCORE_BASE_URL/$version/"
-    if zip_filename=$(curl -s --max-time 10 "$version_url" | grep -oE 'MeshCore-[^"]*-web\.zip' | head -1); then
-        echo "$MESHCORE_BASE_URL/$version/$zip_filename"
+    log "Checking directory: $version_url" >&2
+    
+    if zip_filename=$(curl -s --max-time 15 "$version_url" | grep -oE 'href="\.\/MeshCore[^"]*-web\.zip"' | grep -oE 'MeshCore[^"]*-web\.zip' | head -1); then
+        local download_url="$MESHCORE_BASE_URL/$version/$zip_filename"
+        log "Found zip file: $zip_filename" >&2
+        log "Download URL: $download_url" >&2
+        echo "$download_url"
         return 0
     fi
     
-    # Fallback to pattern-based construction
-    echo "$MESHCORE_BASE_URL/$version/MeshCore-$version-web.zip"
+    log "Could not find zip file in $version_url" >&2
     return 1
 }
 
@@ -124,16 +130,22 @@ update_meshcore() {
     local download_url="$MESHCORE_ZIP_URL"
     local version_name="manual"
     
-    # Try to auto-detect latest version if using base URL
-    if [ "$MESHCORE_ZIP_URL" = "https://files.liamcottle.net/MeshCore/v1.25.0/MeshCore-v1.25.0+47-aef292a-web.zip" ]; then
-        log "Using default URL, attempting to find latest version..."
+    # Auto-detect latest version if no specific URL is provided
+    if [ -z "$MESHCORE_ZIP_URL" ]; then
+        log "No specific ZIP URL provided, attempting to find latest version..."
         if latest_version=$(find_latest_version); then
             if auto_url=$(get_download_url "$latest_version"); then
                 download_url="$auto_url"
                 version_name="$latest_version"
                 log "Auto-detected version: $version_name"
                 log "Auto-detected URL: $download_url"
+            else
+                log "Failed to get download URL for version $latest_version"
+                return 1
             fi
+        else
+            log "Failed to find latest version"
+            return 1
         fi
     else
         # Extract version from custom URL if possible
