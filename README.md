@@ -2,6 +2,15 @@
 
 A Docker container that downloads and hosts the MeshCore web application from [files.liamcottle.net](https://files.liamcottle.net/MeshCore/).
 
+## ⚠️ IMPORTANT: HTTPS Required for Bluetooth Features
+
+**MeshCore requires HTTPS to access Bluetooth devices through the Web Bluetooth API.** You have two options:
+
+1. **Reverse Proxy Setup** (Recommended for production): Use HTTP mode with a reverse proxy (nginx, Traefik, etc.) that handles HTTPS
+2. **Direct HTTPS Access**: Enable built-in HTTPS with `ENABLE_HTTPS=true` for direct access
+
+**Without HTTPS, you cannot connect to Bluetooth devices - the browser will block the Web Bluetooth API.**
+
 ## Features
 
 - **Runtime Download**: Downloads MeshCore from official zip files when the container starts
@@ -12,13 +21,14 @@ A Docker container that downloads and hosts the MeshCore web application from [f
 - **Graceful Fallback**: Uses cached version if download fails
 - **Production Ready**: Includes nginx with optimized configuration and health checks
 - **Auto-Updates**: Checks for newer versions on container restart
+- **Configurable HTTPS**: Optional built-in HTTPS support with automatic SSL certificate generation
 
 ## Quick Start
 
-### Using Docker Compose (Recommended)
+### Option 1: HTTP Only (For Reverse Proxy Setup)
 
 ```yaml
-# docker-compose.yml
+# docker-compose.yml - HTTP only for reverse proxy
 version: "3.8"
 services:
   meshcore:
@@ -29,10 +39,34 @@ services:
       - meshcore-data:/app/versions
     environment:
       - TZ=UTC
+      - ENABLE_HTTPS=false # HTTP only
 
 volumes:
   meshcore-data:
 ```
+
+### Option 2: HTTPS Enabled (For Direct Access with Bluetooth)
+
+```yaml
+# docker-compose.yml - HTTPS enabled for direct access
+version: "3.8"
+services:
+  meshcore:
+    image: ghcr.io/drewzh/meshcore-web-docker:latest
+    ports:
+      - "8080:80" # HTTP access
+      - "8443:443" # HTTPS access (required for Bluetooth)
+    volumes:
+      - meshcore-data:/app/versions
+    environment:
+      - TZ=UTC
+      - ENABLE_HTTPS=true # Enable HTTPS
+
+volumes:
+  meshcore-data:
+```
+
+### Starting the Container
 
 ```bash
 # Start the container
@@ -42,18 +76,45 @@ docker-compose up -d
 docker-compose logs -f meshcore
 ```
 
-The application will be available at http://localhost:8080
+### Accessing the Application
 
-### Using Docker directly
+**HTTP Only Mode (Option 1):**
+
+- Application: http://localhost:8080
+- ⚠️ **Bluetooth features will NOT work** - you need HTTPS via reverse proxy
+
+**HTTPS Enabled Mode (Option 2):**
+
+- HTTP Access: http://localhost:8080 (basic functionality)
+- **HTTPS Access: https://localhost:8443** (✅ **Bluetooth features work**)
+- ⚠️ You'll see a security warning due to self-signed certificate - this is normal for local development
+
+### Using Docker Directly
+
+**HTTP Only Mode:**
 
 ```bash
-# Run the container
 docker run -d \
   --name meshcore-web \
   -p 8080:80 \
+  -e ENABLE_HTTPS=false \
   -v meshcore-data:/app/versions \
   ghcr.io/drewzh/meshcore-web-docker:latest
+```
 
+**HTTPS Enabled Mode:**
+
+```bash
+docker run -d \
+  --name meshcore-web \
+  -p 8080:80 \
+  -p 8443:443 \
+  -e ENABLE_HTTPS=true \
+  -v meshcore-data:/app/versions \
+  ghcr.io/drewzh/meshcore-web-docker:latest
+```
+
+```bash
 # Check logs
 docker logs -f meshcore-web
 ```
@@ -62,16 +123,18 @@ docker logs -f meshcore-web
 
 ### Environment Variables
 
-| Variable            | Default                                 | Description                                  |
-| ------------------- | --------------------------------------- | -------------------------------------------- |
-| `TZ`                | `UTC`                                   | Timezone for logs                            |
-| `MESHCORE_BASE_URL` | `https://files.liamcottle.net/MeshCore` | Base URL for MeshCore releases               |
-| `PUID`              | (empty)                                 | User ID for Unraid compatibility (optional)  |
-| `PGID`              | (empty)                                 | Group ID for Unraid compatibility (optional) |
+| Variable            | Default                                 | Description                                   |
+| ------------------- | --------------------------------------- | --------------------------------------------- |
+| `TZ`                | `UTC`                                   | Timezone for logs                             |
+| `MESHCORE_BASE_URL` | `https://files.liamcottle.net/MeshCore` | Base URL for MeshCore releases                |
+| `ENABLE_HTTPS`      | `false`                                 | Enable HTTPS support (required for Bluetooth) |
+| `PUID`              | (empty)                                 | User ID for Unraid compatibility (optional)   |
+| `PGID`              | (empty)                                 | Group ID for Unraid compatibility (optional)  |
 
 ### Ports
 
-- `80`: nginx web server (map to desired host port)
+- `80`: HTTP web server (always available)
+- `443`: HTTPS web server (only when `ENABLE_HTTPS=true`)
 
 ### Volumes
 
@@ -94,9 +157,18 @@ docker logs -f meshcore-web
 
 ## Endpoints
 
+**Available on both HTTP and HTTPS (when enabled):**
+
 - `/` - MeshCore web application (or loading page during download)
 - `/health` - Health check endpoint (returns "healthy")
 - `/version` - JSON information about the currently active version
+
+**Access URLs:**
+
+- HTTP: `http://localhost:8080/` (when mapped to port 8080)
+- HTTPS: `https://localhost:8443/` (when HTTPS enabled and mapped to port 8443)
+
+> **🔑 Important**: For Bluetooth functionality, you MUST use HTTPS - either through this container's built-in HTTPS support or via a reverse proxy.
 
 ## Version Management
 
@@ -120,9 +192,21 @@ For Unraid users, this container is perfect for hosting MeshCore:
 
 #### Recommended Unraid Configuration:
 
+**For HTTP Only (behind reverse proxy):**
+
 ```
 Container Port: 80 -> Host Port: 8080
 Container Path: /app/versions -> Host Path: /mnt/user/appdata/meshcore-web
+Variable: ENABLE_HTTPS -> false
+```
+
+**For Direct HTTPS Access (Bluetooth support):**
+
+```
+Container Port: 80 -> Host Port: 8080
+Container Port: 443 -> Host Port: 8443
+Container Path: /app/versions -> Host Path: /mnt/user/appdata/meshcore-web
+Variable: ENABLE_HTTPS -> true
 ```
 
 #### Optional: Set User Permissions (for appdata compatibility):
@@ -130,13 +214,29 @@ Container Path: /app/versions -> Host Path: /mnt/user/appdata/meshcore-web
 - **PUID**: Set to your user ID (usually 99 for Unraid)
 - **PGID**: Set to your group ID (usually 100 for Unraid)
 
-Example docker run command for Unraid:
+**Example Docker Run for Unraid (HTTP only):**
 
 ```bash
 docker run -d \
   --name=meshcore-web \
   -p 8080:80 \
   -v /mnt/user/appdata/meshcore-web:/app/versions \
+  -e ENABLE_HTTPS=false \
+  -e PUID=99 \
+  -e PGID=100 \
+  -e TZ=America/New_York \
+  ghcr.io/drewzh/meshcore-web-docker:latest
+```
+
+**Example Docker Run for Unraid (HTTPS enabled):**
+
+```bash
+docker run -d \
+  --name=meshcore-web \
+  -p 8080:80 \
+  -p 8443:443 \
+  -v /mnt/user/appdata/meshcore-web:/app/versions \
+  -e ENABLE_HTTPS=true \
   -e PUID=99 \
   -e PGID=100 \
   -e TZ=America/New_York \

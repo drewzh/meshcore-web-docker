@@ -1,10 +1,10 @@
 FROM nginx:alpine
 
-# Install required tools for downloading and processing the web app
-RUN apk add --no-cache curl grep sed findutils file bash unzip
+# Install required tools for downloading, processing, and SSL certificates
+RUN apk add --no-cache curl grep sed findutils file bash unzip openssl
 
 # Create directories
-RUN mkdir -p /app/web /app/scripts /app/versions
+RUN mkdir -p /app/web /app/scripts /app/versions /etc/nginx/ssl
 
 # Copy scripts first (for better layer caching)
 COPY scripts/ /app/scripts/
@@ -20,8 +20,8 @@ RUN echo '{"status":"loading","version":"loading-page","description":"MeshCore i
 # Set up the initial symlink to the loading page
 RUN ln -sf /app/versions/loading /app/web/current
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/nginx.conf
+# Copy nginx configuration template
+COPY nginx.conf /etc/nginx/nginx.conf.template
 
 # Copy and set up entrypoint script
 COPY entrypoint.sh /entrypoint.sh
@@ -34,8 +34,11 @@ ENV MESHCORE_BASE_URL="https://files.liamcottle.net/MeshCore"
 ENV PUID=""
 ENV PGID=""
 
-# Expose port 80
-EXPOSE 80
+# Environment variable for HTTPS configuration
+ENV ENABLE_HTTPS="false"
+
+# Expose ports 80 and 443 (443 only used when ENABLE_HTTPS=true)
+EXPOSE 80 443
 
 # Set entrypoint
 ENTRYPOINT ["/bin/sh", "/entrypoint.sh"]
