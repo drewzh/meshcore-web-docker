@@ -84,26 +84,48 @@ download_meshcore() {
         return 1
     fi
     
-    # Find the extracted directory (should be something like MeshCore-v1.25.0+47-aef292a-web)
-    local extracted_dir
-    extracted_dir=$(find "$temp_dir" -mindepth 1 -maxdepth 1 -type d | head -1)
-    
-    if [ ! -d "$extracted_dir" ]; then
-        log "ERROR: Could not find extracted directory"
-        return 1
+    # Check if content is in a web subdirectory (newer format) or root directory (older format)
+    local web_content_dir
+    if [ -d "$temp_dir/web" ] && [ -f "$temp_dir/web/index.html" ]; then
+        log "Found web content in subdirectory: $temp_dir/web"
+        web_content_dir="$temp_dir/web"
+    else
+        # Find the extracted directory (should be something like MeshCore-v1.25.0+47-aef292a-web)
+        local extracted_dir
+        extracted_dir=$(find "$temp_dir" -mindepth 1 -maxdepth 1 -type d | head -1)
+        
+        if [ ! -d "$extracted_dir" ]; then
+            log "ERROR: Could not find extracted directory"
+            return 1
+        fi
+        
+        log "Found extracted directory: $(basename "$extracted_dir")"
+        
+        if [ -d "$extracted_dir/web" ] && [ -f "$extracted_dir/web/index.html" ]; then
+            log "Found web content in nested subdirectory: $extracted_dir/web"
+            web_content_dir="$extracted_dir/web"
+        elif [ -f "$extracted_dir/index.html" ]; then
+            log "Found web content in root directory: $extracted_dir"
+            web_content_dir="$extracted_dir"
+        else
+            log "ERROR: No index.html found in extracted content"
+            log "Contents of temp directory:"
+            ls -la "$temp_dir" || true
+            if [ -d "$extracted_dir" ]; then
+                log "Contents of extracted directory:"
+                ls -la "$extracted_dir" || true
+                if [ -d "$extracted_dir/web" ]; then
+                    log "Contents of web subdirectory:"
+                    ls -la "$extracted_dir/web" || true
+                fi
+            fi
+            return 1
+        fi
     fi
     
-    log "Found extracted directory: $(basename "$extracted_dir")"
-    
-    # Validate the extracted content
-    if [ ! -f "$extracted_dir/index.html" ]; then
-        log "ERROR: No index.html found in extracted content"
-        return 1
-    fi
-    
-    # Move content to target directory
+    # Move web content to target directory
     rm -rf "$target_dir"
-    mv "$extracted_dir" "$target_dir"
+    mv "$web_content_dir" "$target_dir"
     
     # Create version info file
     cat > "$target_dir/.version" << EOF
@@ -151,8 +173,11 @@ update_meshcore() {
     if download_meshcore "$download_url" "$new_version_dir" "$version_name"; then
         log "Download successful, switching to new version"
         
-        # Switch symlink to new version
+        # Switch symlink to new version (remove existing link first)
+        rm -f "$CURRENT_LINK"
         ln -sf "$new_version_dir" "$CURRENT_LINK"
+        
+        log "Symlink updated: $CURRENT_LINK -> $new_version_dir"
         
         log "Successfully updated to version: $version_name"
         
@@ -207,6 +232,7 @@ ensure_working_version() {
     
     # Ensure loading page exists as fallback
     if [ -d "$VERSIONS_DIR/loading" ] && [ -f "$VERSIONS_DIR/loading/index.html" ]; then
+        rm -f "$CURRENT_LINK"
         ln -sf "$VERSIONS_DIR/loading" "$CURRENT_LINK"
         log "Using loading page as fallback"
         return 0
@@ -240,13 +266,26 @@ main() {
     fi
     
     # Show final status
+    log "=== Final Status Check ==="
     if [ -L "$CURRENT_LINK" ]; then
         local current_target
         current_target=$(readlink "$CURRENT_LINK")
+        log "Symlink exists: $CURRENT_LINK"
+        log "Points to: $current_target"
         log "Final version: $(basename "$current_target")"
+        log "Target directory exists: $([ -d "$current_target" ] && echo "Yes" || echo "No")"
         if [ -f "$CURRENT_LINK/.version" ]; then
             log "Version info: $(cat "$CURRENT_LINK/.version")"
+        else
+            log "No .version file found"
         fi
+        if [ -f "$CURRENT_LINK/index.html" ]; then
+            log "index.html present: Yes"
+        else
+            log "index.html present: No"
+        fi
+    else
+        log "ERROR: No symlink found at $CURRENT_LINK"
     fi
     
     log "MeshCore is ready to serve"
