@@ -9,8 +9,6 @@ services:
       - meshcore-data:/app/versions
     environment:
       - TZ=UTC
-      # Optional: Specify a specific version
-      # - MESHCORE_ZIP_URL=https://files.liamcottle.net/MeshCore/v1.25.0/MeshCore-v1.25.0+47-aef292a-web.zip
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]

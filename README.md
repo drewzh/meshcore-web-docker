@@ -29,8 +29,6 @@ services:
       - meshcore-data:/app/versions
     environment:
       - TZ=UTC
-      # Optional: Specify a specific version
-      # - MESHCORE_ZIP_URL=https://files.liamcottle.net/MeshCore/v1.25.0/MeshCore-v1.25.0+47-aef292a-web.zip
 
 volumes:
   meshcore-data:
@@ -68,7 +66,6 @@ docker logs -f meshcore-web
 |----------|---------|-------------|
 | `TZ` | `UTC` | Timezone for logs |
 | `MESHCORE_BASE_URL` | `https://files.liamcottle.net/MeshCore` | Base URL for MeshCore releases |
-| `MESHCORE_ZIP_URL` | `(auto-detected)` | Specific version URL - if not set, latest will be auto-detected |
 
 ### Ports
 
@@ -84,7 +81,7 @@ docker logs -f meshcore-web
 2. **Container Start**:
    - Shows loading page immediately for instant response
    - Downloads MeshCore from official zip files in the background
-   - Auto-detects latest version if no specific version is configured
+   - Automatically detects and downloads the latest version
    - Validates downloads before switching versions
    - Auto-refreshes browser to show the actual app once ready
 3. **Version Management**:
@@ -101,27 +98,13 @@ docker logs -f meshcore-web
 
 ## Version Management
 
-The container automatically manages MeshCore versions:
+The container automatically manages MeshCore versions by:
 
-### Automatic Latest Version
+1. Checking files.liamcottle.net for the latest available version
+2. Downloading and installing it if not already cached
+3. Switching to the new version automatically
 
-By default, the container will:
-1. Check files.liamcottle.net for the latest available version
-2. Download and install it if not already cached
-3. Switch to the new version automatically
-
-### Specific Version
-
-To use a specific version, set the `MESHCORE_ZIP_URL` environment variable:
-
-```bash
-docker run -d \
-  --name meshcore-web \
-  -p 8080:80 \
-  -v meshcore-data:/app/versions \
-  -e MESHCORE_ZIP_URL="https://files.liamcottle.net/MeshCore/v1.24.0/MeshCore-v1.24.0+46-9bf123c-web.zip" \
-  ghcr.io/drewzh/meshcore-web-docker:latest
-```
+This ensures you always have the latest MeshCore features and bug fixes without any manual intervention.
 
 ### Unraid Integration
 
@@ -130,7 +113,7 @@ For Unraid users, this container is perfect for hosting MeshCore:
 1. Install from Community Applications or add the repository manually
 2. Set your desired port mapping (e.g., 8080:80)
 3. Configure a volume mapping for `/app/versions` to persist downloads
-4. Optionally set `MESHCORE_ZIP_URL` to pin to a specific version
+4. The container will automatically use the latest MeshCore version
 
 ## Development
 

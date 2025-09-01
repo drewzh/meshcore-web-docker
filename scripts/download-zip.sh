@@ -4,7 +4,6 @@ set -e
 
 # Configuration
 MESHCORE_BASE_URL="${MESHCORE_BASE_URL:-https://files.liamcottle.net/MeshCore}"
-MESHCORE_ZIP_URL="${MESHCORE_ZIP_URL:-}"  # Empty means auto-detect
 VERSIONS_DIR="${VERSIONS_DIR:-/app/versions}"
 WEB_DIR="${WEB_DIR:-/app/web}"
 CURRENT_LINK="$WEB_DIR/current"
@@ -127,33 +126,20 @@ update_meshcore() {
     # Create directories
     mkdir -p "$VERSIONS_DIR" "$WEB_DIR"
     
-    local download_url="$MESHCORE_ZIP_URL"
-    local version_name="manual"
-    
-    # Auto-detect latest version if no specific URL is provided
-    if [ -z "$MESHCORE_ZIP_URL" ]; then
-        log "No specific ZIP URL provided, attempting to find latest version..."
-        if latest_version=$(find_latest_version); then
-            if auto_url=$(get_download_url "$latest_version"); then
-                download_url="$auto_url"
-                version_name="$latest_version"
-                log "Auto-detected version: $version_name"
-                log "Auto-detected URL: $download_url"
-            else
-                log "Failed to get download URL for version $latest_version"
-                return 1
-            fi
+    # Always auto-detect the latest version
+    log "Finding latest MeshCore version..."
+    if latest_version=$(find_latest_version); then
+        if download_url=$(get_download_url "$latest_version"); then
+            version_name="$latest_version"
+            log "Auto-detected version: $version_name"
+            log "Auto-detected URL: $download_url"
         else
-            log "Failed to find latest version"
+            log "Failed to get download URL for version $latest_version"
             return 1
         fi
     else
-        # Extract version from custom URL if possible
-        if custom_version=$(echo "$MESHCORE_ZIP_URL" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+'); then
-            version_name="$custom_version"
-        else
-            version_name="custom-$(date '+%Y%m%d-%H%M%S')"
-        fi
+        log "Failed to find latest version"
+        return 1
     fi
     
     log "Using download URL: $download_url"
@@ -234,7 +220,6 @@ ensure_working_version() {
 main() {
     log "MeshCore zip downloader starting..."
     log "Base URL: $MESHCORE_BASE_URL"
-    log "Zip URL: $MESHCORE_ZIP_URL"
     
     # Ensure we have a working version first (loading page)
     if ! ensure_working_version; then
