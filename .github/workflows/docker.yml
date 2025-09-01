@@ -36,8 +36,8 @@ jobs:
           context: .
           load: true
           tags: meshcore-web:test
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Disable cache to test if it's a caching issue
+          no-cache: true
 
       - name: Test container startup
         run: |
@@ -47,9 +47,14 @@ jobs:
 
           # Debug: Check if entrypoint exists in the image
           echo "=== Checking entrypoint in image ==="
+          docker run --rm meshcore-web:test ls -la / | grep entrypoint || echo "❌ entrypoint.sh not found in root"
           docker run --rm meshcore-web:test ls -la /entrypoint.sh || echo "❌ entrypoint.sh not found"
-          docker run --rm meshcore-web:test file /entrypoint.sh || echo "❌ Cannot check file type"
-          docker run --rm meshcore-web:test head -3 /entrypoint.sh || echo "❌ Cannot read file"
+          docker run --rm meshcore-web:test cat /entrypoint.sh | head -3 || echo "❌ Cannot read file"
+          
+          # Try different approaches to check the file
+          echo "=== Alternative checks ==="
+          docker run --rm meshcore-web:test find / -name "entrypoint*" 2>/dev/null || echo "No entrypoint files found"
+          docker run --rm meshcore-web:test which bash || echo "Bash not found"
 
           # Start the container
           echo "=== Starting container ==="

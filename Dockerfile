@@ -24,8 +24,9 @@ COPY nginx.conf /etc/nginx/nginx.conf
 COPY . /debug-context/
 RUN echo "=== Build context files ===" && ls -la /debug-context/
 
-# Copy entrypoint script and make it executable
-COPY entrypoint.sh /entrypoint.sh
+# Copy entrypoint script and make it executable (try different approach)
+COPY entrypoint.sh /tmp/entrypoint.sh
+RUN ls -la /tmp/entrypoint.sh && cp /tmp/entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 # Debug: Verify entrypoint is correctly set up
