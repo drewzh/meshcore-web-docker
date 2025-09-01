@@ -226,8 +226,6 @@ volumes:
 
 Create an `nginx.conf` with SSL configuration and proxy to `http://meshcore:80`.
 
-````
-
 ### Accessing the Application
 
 - Application: http://localhost:8080
@@ -469,4 +467,7 @@ This project is provided as-is for hosting the MeshCore web application with per
 - Security headers are configured in nginx
 - Only necessary tools are installed in the container
 - The container includes health checks for monitoring
-````
+
+```
+
+```
