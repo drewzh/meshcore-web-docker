@@ -172,47 +172,8 @@ init_directories() {
     # Create loading page if it doesn't exist (volume mount scenario)
     if [ ! -f "$loading_dir/index.html" ]; then
         log "Creating loading page content (volume mount detected)"
-        cat > "$loading_dir/index.html" << 'EOF'
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MeshCore - Loading</title>
-    <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0; padding: 40px; text-align: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh; display: flex; align-items: center; justify-content: center;
-            color: white;
-        }
-        .container { background: rgba(255,255,255,0.1); padding: 40px; border-radius: 20px; backdrop-filter: blur(10px); }
-        .spinner { border: 4px solid rgba(255,255,255,0.3); border-top: 4px solid white; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin: 20px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        h1 { margin: 0 0 20px 0; font-size: 2.5em; font-weight: 300; }
-        p { font-size: 1.2em; margin: 10px 0; opacity: 0.9; }
-    </style>
-    <script>
-        let dots = 0;
-        setInterval(() => {
-            dots = (dots + 1) % 4;
-            const loading = document.querySelector('.loading-text');
-            if (loading) loading.textContent = 'Downloading MeshCore' + '.'.repeat(dots);
-        }, 500);
-        setTimeout(() => location.reload(), 5000);
-    </script>
-</head>
-<body>
-    <div class="container">
-        <h1>🌐 MeshCore</h1>
-        <div class="spinner"></div>
-        <p class="loading-text">Downloading MeshCore</p>
-        <p style="font-size:0.9em; opacity:0.7;">This page will refresh automatically...</p>
-    </div>
-</body>
-</html>
-EOF
+        cp "/loading.html" "$loading_dir/index.html"
+        log "Copied static loading.html to $loading_dir/index.html"
     fi
     
     # Create loading page version file if it doesn't exist  

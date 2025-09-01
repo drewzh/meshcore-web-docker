@@ -62,11 +62,11 @@ docker logs -f meshcore-web
 
 ### Environment Variables
 
-| Variable            | Default                                 | Description                    |
-| ------------------- | --------------------------------------- | ------------------------------ |
-| `TZ`                | `UTC`                                   | Timezone for logs              |
-| `MESHCORE_BASE_URL` | `https://files.liamcottle.net/MeshCore` | Base URL for MeshCore releases |
-| `PUID`              | (empty)                                 | User ID for Unraid compatibility (optional) |
+| Variable            | Default                                 | Description                                  |
+| ------------------- | --------------------------------------- | -------------------------------------------- |
+| `TZ`                | `UTC`                                   | Timezone for logs                            |
+| `MESHCORE_BASE_URL` | `https://files.liamcottle.net/MeshCore` | Base URL for MeshCore releases               |
+| `PUID`              | (empty)                                 | User ID for Unraid compatibility (optional)  |
 | `PGID`              | (empty)                                 | Group ID for Unraid compatibility (optional) |
 
 ### Ports
@@ -113,21 +113,25 @@ This ensures you always have the latest MeshCore features and bug fixes without 
 For Unraid users, this container is perfect for hosting MeshCore:
 
 #### Basic Setup:
+
 1. Install from Community Applications or add the repository manually
 2. Set your desired port mapping (e.g., 8080:80)
 3. Configure a volume mapping for `/app/versions` to persist downloads
 
 #### Recommended Unraid Configuration:
+
 ```
 Container Port: 80 -> Host Port: 8080
 Container Path: /app/versions -> Host Path: /mnt/user/appdata/meshcore-web
 ```
 
 #### Optional: Set User Permissions (for appdata compatibility):
+
 - **PUID**: Set to your user ID (usually 99 for Unraid)
 - **PGID**: Set to your group ID (usually 100 for Unraid)
 
 Example docker run command for Unraid:
+
 ```bash
 docker run -d \
   --name=meshcore-web \
@@ -140,8 +144,9 @@ docker run -d \
 ```
 
 The container will automatically:
+
 - Create the appdata directory structure if it doesn't exist
-- Set proper permissions for Unraid compatibility  
+- Set proper permissions for Unraid compatibility
 - Download and cache MeshCore versions in your appdata folder
 - Restart instantly with cached versions (no redownload needed)
 
