@@ -17,9 +17,17 @@ ls -la /app/web/ 2>/dev/null || log "No web directory found"
 
 # Run the update script to download/update the web application
 log "Running MeshCore updater..."
-if ! /app/scripts/update-meshcore.sh; then
-    log "WARNING: Update script failed, checking for fallback content..."
+log "Current versions available:"
+ls -la /app/versions/ 2>/dev/null || log "No versions directory found"
+
+if /app/scripts/update-meshcore.sh; then
+    log "✅ Update script completed successfully"
+else
+    log "⚠️ Update script failed or encountered issues"
 fi
+
+log "Post-update versions available:"
+ls -la /app/versions/ 2>/dev/null || log "No versions directory found"
 
 # Check if we have web content via the current symlink
 log "Checking for current version symlink..."

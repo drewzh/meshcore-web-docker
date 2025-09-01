@@ -14,6 +14,9 @@ RUN chmod +x /app/scripts/*.sh
 RUN mkdir -p /app/versions/loading
 COPY loading.html /app/versions/loading/index.html
 
+# Create a version file for the loading page
+RUN echo '{"status":"loading","version":"loading-page","description":"MeshCore is downloading..."}' > /app/versions/loading/.version
+
 # Set up the initial symlink to the loading page
 RUN ln -sf /app/versions/loading /app/web/current
 
