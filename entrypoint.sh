@@ -12,6 +12,21 @@ log "Starting MeshCore Web Docker container..."
 log "Running MeshCore updater..."
 if /app/scripts/update-meshcore.sh; then
     log "✅ Update script completed successfully"
+    # Check what version we have after update
+    current_target=$(readlink /app/web/current 2>/dev/null || echo "none")
+    log "After update, current symlink points to: $current_target"
+    if [ -f "/app/web/current/.version" ]; then
+        log "Version file content: $(cat /app/web/current/.version)"
+    else
+        log "No version file found after update"
+    fi
+    
+    # Check if we have any downloaded versions
+    downloaded_versions=$(ls -1 /app/versions/ 2>/dev/null | grep -v "loading" | wc -l)
+    log "Downloaded versions available: $downloaded_versions"
+    if [ "$downloaded_versions" -gt 0 ]; then
+        log "Available versions: $(ls -1 /app/versions/ | grep -v loading | tr '\n' ' ')"
+    fi
 else
     log "⚠️ Update script failed, using fallback content"
 fi
@@ -23,9 +38,10 @@ if [ ! -L "/app/web/current" ] || [ ! -d "/app/web/current" ]; then
     ln -sf /app/versions/loading /app/web/current
 fi
 
-# Ensure version file exists for the /version endpoint
-if [ ! -f "/app/web/current/.version" ]; then
-    log "Creating version file..."
+# Ensure version file exists for the /version endpoint (only if pointing to loading page)
+current_target=$(readlink /app/web/current 2>/dev/null || echo "")
+if [[ "$current_target" == */loading ]] && [ ! -f "/app/web/current/.version" ]; then
+    log "Creating temporary version file for loading page..."
     cat > /app/web/current/.version << 'EOF'
 {"status":"loading","version":"loading-page","description":"MeshCore is downloading..."}
 EOF
