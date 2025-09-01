@@ -24,6 +24,9 @@ COPY nginx.conf /etc/nginx/nginx.conf
 COPY entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
+# Debug: Verify entrypoint is correctly set up
+RUN ls -la /entrypoint.sh && file /entrypoint.sh && head -3 /entrypoint.sh
+
 # Expose port 80
 EXPOSE 80
 

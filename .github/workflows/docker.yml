@@ -32,30 +32,55 @@ jobs:
 
       - name: Test container startup
         run: |
+          # Debug: Check the built image
+          echo "=== Checking built image ==="
+          docker images meshcore-web:test
+          
+          # Debug: Check if entrypoint exists in the image
+          echo "=== Checking entrypoint in image ==="
+          docker run --rm meshcore-web:test ls -la /entrypoint.sh || echo "❌ entrypoint.sh not found"
+          docker run --rm meshcore-web:test file /entrypoint.sh || echo "❌ Cannot check file type"
+          docker run --rm meshcore-web:test head -3 /entrypoint.sh || echo "❌ Cannot read file"
+          
           # Start the container
+          echo "=== Starting container ==="
           docker run -d --name meshcore-test -p 8080:80 meshcore-web:test
           
-          # Wait for container to be ready
-          timeout 120 bash -c 'until curl -f http://localhost:8080/health; do echo "Waiting for container..."; sleep 2; done'
+          # Check container status immediately
+          echo "=== Container status ==="
+          docker ps -a --filter name=meshcore-test
           
-          # Test the health endpoint
-          curl -f http://localhost:8080/health
+          # Show container logs
+          echo "=== Container logs ==="
+          docker logs meshcore-test
           
-          # Test that we get HTML content (loading page or actual app)
-          response=$(curl -s http://localhost:8080/)
-          if echo "$response" | grep -qi "html\|<title\|<head\|<body"; then
-            echo "✅ HTML content found"
+          # Wait for container to be ready (if it started successfully)
+          if docker ps --filter name=meshcore-test --filter status=running | grep -q meshcore-test; then
+            echo "=== Container is running, testing endpoints ==="
+            timeout 120 bash -c 'until curl -f http://localhost:8080/health; do echo "Waiting for container..."; sleep 2; done'
+            
+            # Test the health endpoint
+            curl -f http://localhost:8080/health
+            
+            # Test that we get HTML content (loading page or actual app)
+            response=$(curl -s http://localhost:8080/)
+            if echo "$response" | grep -qi "html\|<title\|<head\|<body"; then
+              echo "✅ HTML content found"
+            else
+              echo "❌ No HTML content found"
+              exit 1
+            fi
+            
+            # Test version endpoint if available
+            curl -s http://localhost:8080/version || echo "Version endpoint not yet available"
           else
-            echo "❌ No HTML content found"
+            echo "❌ Container failed to start"
             exit 1
           fi
-          
-          # Test version endpoint if available
-          curl -s http://localhost:8080/version || echo "Version endpoint not yet available"
 
           # Clean up
-          docker stop meshcore-test
-          docker rm meshcore-test
+          docker stop meshcore-test || true
+          docker rm meshcore-test || true
 
   build-and-push:
     needs: test
