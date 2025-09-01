@@ -20,9 +20,9 @@ RUN ln -sf /app/versions/loading /app/web/current
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Create entrypoint script
+# Copy entrypoint script and make it executable
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 # Expose port 80
 EXPOSE 80
